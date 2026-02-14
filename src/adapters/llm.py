@@ -1,0 +1,40 @@
+from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
+from ..core.entities import NewsletterDigest
+
+import os
+os.makedirs("logs", exist_ok=True)
+import sys
+import logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(filename='logs/llm.log', mode='w')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+TOKEN = os.getenv('GITHUB_TOKEN')
+ENDPOINT = os.getenv('GITHUB_ENDPOINT')
+MODEL = os.getenv('GITHUB_MODEL_NAME')
+
+client = OpenAI(
+        base_url=ENDPOINT,
+        api_key=TOKEN,
+    )
+
+async def extract_digest_from_text(raw_text: str) -> NewsletterDigest:
+    logger.info("⚙️ Extracting digest from raw text...")
+    logger.debug(f"Extracting digest from text of length {len(raw_text)}")
+    return client.chat.completions.parse(
+        model=MODEL,
+        response_format=NewsletterDigest,
+        messages=[
+            {"role": "system", "content": "You are a Principal AI Engineer. Extract the most high-signal updates from this newsletter content."},
+            {"role": "user", "content": raw_text},
+        ],
+    )
