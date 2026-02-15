@@ -24,6 +24,6 @@ env.bak/
 venv.bak/
 
 # my files
-notes.*
+notes
 notebooks
 logs
