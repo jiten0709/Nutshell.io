@@ -2,21 +2,10 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 from src.core.entities import NewsletterDigest
-
 import os
-os.makedirs("logs", exist_ok=True)
-import sys
-import logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(filename='logs/llm.log', mode='w')
-    ]
-)
-logger = logging.getLogger(__name__)
+
+from utils.logging_setup import get_logger
+logger = get_logger(__name__, log_file="adapters.log")
 
 TOKEN = os.getenv('GITHUB_TOKEN')
 ENDPOINT = os.getenv('GITHUB_ENDPOINT')

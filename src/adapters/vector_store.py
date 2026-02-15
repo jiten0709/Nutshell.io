@@ -8,6 +8,9 @@ from fastembed import TextEmbedding
 from typing import Optional
 import uuid
 
+from utils.logging_setup import get_logger
+logger = get_logger(__name__, log_file="adapters.log")
+
 class VectorService:
     def __init__(self, collection_name: str = "nutshells"):
         self.client = QdrantClient(host="localhost", port=6333)
@@ -35,13 +38,17 @@ class VectorService:
             query=vector,
             limit=1,
         ).points
+
+        logger.debug(f"find_duplicate: Queried for text '{text[:20]}...' and got results: {results}")
         
         if results and results[0].score >= threshold:
             return results[0].id
         return None
 
     def upsert_insight(self, insight_data: dict, text_for_vector: str):
-        """Inserts a new insight with its metadata."""
+        """
+        The 'Write' path: Creates a brand new point with a vector.
+        """
         vector = list(self.encoder.embed([text_for_vector]))[0]
         
         self.client.upsert(
@@ -54,3 +61,31 @@ class VectorService:
                 )
             ]
         )
+
+        logger.debug(f"upsert_insight: Upserted insight with headline '{text_for_vector[:20]}' and data: {insight_data:[:20]}")
+
+    def get_payload(self, point_id: str) -> dict:
+        """
+        Retrieves the metadata for an existing point.
+        Used to see what sources/links we already have.
+        """
+        result = self.client.retrieve(
+            collection_name=self.collection_name,
+            ids=[point_id]
+        )
+
+        logger.debug(f"get_payload: Retrieved payload for point_id '{point_id}': {result[:20]}")
+
+        return result[0].payload if result else {}
+    
+    def patch_payload(self, point_id: str, new_data: dict):
+        """
+        The 'Update' path: Only modifies specific keys in the metadata.
+        Crucial for the 'Merging' logic.
+        """
+        self.client.set_payload(
+            collection_name=self.collection_name,
+            payload=new_data,
+            points=[point_id]
+        )
+        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with new_data: {new_data[:20]}")    

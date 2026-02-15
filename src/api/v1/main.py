@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Request, BackgroundTasks
 from src.core.use_cases import process_new_email
 
+from utils.logging_setup import get_logger
+logger = get_logger(__name__, log_file="api.log")
+
 app = FastAPI(title="Nutshell.io API")
 
 # welcome endpoint
@@ -15,9 +18,10 @@ async def handle_inbound_email(request: Request, background_tasks: BackgroundTas
     Endpoint for Postmark/Nylas to POST new email content.
     We use BackgroundTasks to return a 200 OK immediately and process the AI logic in the background.
     """
+    logger.info("📬 Received new inbound email webhook. Offloading to background task...")
     raw_payload = await request.json()
     
     # We offload the heavy LLM/Vector work to the background
     background_tasks.add_task(process_new_email, raw_payload)
-    
+
     return {"status": "received"}
