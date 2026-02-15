@@ -1,3 +1,8 @@
+"""
+This module sets up a standardized logging configuration for the Nutshell.io application. 
+It defines a get_logger function that can be used across different modules to create loggers with both console and optional file handlers.
+"""
+
 import logging
 import sys
 from pathlib import Path

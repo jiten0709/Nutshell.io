@@ -1,3 +1,14 @@
+"""
+This file defines the core entities for Nutshell.io, which include NewsletterSource, IntelligenceNode, and NewsletterDigest. 
+These entities are used throughout the application to represent the structured data extracted from raw newsletter content. 
+
+- NewsletterSource captures the origin of the news
+- IntelligenceNode represents a single piece of structured news with a headline, summary, relevance score, category, and links
+- NewsletterDigest aggregates multiple IntelligenceNodes along with metadata about the source and processing time. 
+
+By defining these entities in a centralized module, we ensure consistency and clarity across the application when handling the data extracted from newsletters.
+"""
+
 from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional
 from datetime import datetime

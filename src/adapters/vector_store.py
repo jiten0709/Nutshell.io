@@ -1,15 +1,24 @@
 """
-# Qdrant: It's a powerful vector database featuring efficient similarity search and storage for high-dimensional data, payload filtering, snapshots and backup, 1:1 production parity.
-# Fastembed: It keeps your costs at 0 for the PoC while maintaining high accuracy for short text snippets like headlines.
+This module defines the VectorService class, which serves as an adapter to interact with the Qdrant vector database and Fastembed for text embeddings. 
+It provides methods for finding duplicates, upserting insights, retrieving payloads, and patching payloads. 
+This abstraction allows the core application logic to remain decoupled from the specifics of the vector database and embedding service.
+
+- Qdrant: It's a powerful vector database featuring efficient similarity search and storage for high-dimensional data, payload filtering, snapshots and backup, 1:1 production parity.
+- Fastembed: It keeps your costs at 0 for the PoC while maintaining high accuracy for short text snippets like headlines.
 """
 
 from qdrant_client import QdrantClient, models
 from fastembed import TextEmbedding
 from typing import Optional
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
+import os
 
 from utils.logging_setup import get_logger
 logger = get_logger(__name__, log_file="adapters.log")
+
+THRESHOLD = float(os.getenv("THRESHOLD", 0.85))
 
 class VectorService:
     def __init__(self, collection_name: str = "nutshells"):
@@ -29,7 +38,7 @@ class VectorService:
                 )
             )
 
-    def find_duplicate(self, text: str, threshold: float = 0.85) -> Optional[str]:
+    def find_duplicate(self, text: str, threshold: float = THRESHOLD) -> Optional[str]:
         """Returns the ID of a similar news item if it exists above the threshold."""
         vector = list(self.encoder.embed([text]))[0]
         
@@ -62,7 +71,7 @@ class VectorService:
             ]
         )
 
-        logger.debug(f"upsert_insight: Upserted insight with headline '{text_for_vector[:20]}' and data: {insight_data:[:20]}")
+        logger.debug(f"upsert_insight: Upserted insight with headline '{text_for_vector}' and data: {insight_data}")
 
     def get_payload(self, point_id: str) -> dict:
         """
@@ -74,7 +83,7 @@ class VectorService:
             ids=[point_id]
         )
 
-        logger.debug(f"get_payload: Retrieved payload for point_id '{point_id}': {result[:20]}")
+        logger.debug(f"get_payload: Retrieved payload for point_id '{point_id}': {result}")
 
         return result[0].payload if result else {}
     
@@ -88,4 +97,4 @@ class VectorService:
             payload=new_data,
             points=[point_id]
         )
-        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with new_data: {new_data[:20]}")    
+        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with new_data: {new_data}")    

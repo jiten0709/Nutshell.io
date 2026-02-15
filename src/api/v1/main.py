@@ -1,3 +1,7 @@
+"""
+This is the main FastAPI application file that defines the API endpoints for Nutshell.io.
+"""
+
 from fastapi import FastAPI, Request, BackgroundTasks
 from src.core.use_cases import process_new_email
 

@@ -1,3 +1,12 @@
+"""
+about this file: This module contains the core use case logic for processing new email content. 
+When a new email is received, the process_new_email function is called with the raw payload. 
+The function extracts the email body, uses the LLM adapter to get a structured NewsletterDigest, and then checks for duplicates in the vector store. 
+If a duplicate headline is found, it merges the insights and updates the existing record. 
+If not, it adds a new insight to the vector store. 
+This file serves as the central place for the main business logic of how incoming newsletter content is processed and stored.
+"""
+
 from src.adapters.llm import extract_digest_from_text
 from src.adapters.vector_store import VectorService
 

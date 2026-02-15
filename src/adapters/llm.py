@@ -1,3 +1,9 @@
+"""
+This module serves as the adapter layer for interacting with the LLM (Language Model) API. 
+It defines functions that take raw newsletter text as input and return structured NewsletterDigest objects by leveraging the OpenAI API. 
+This abstraction allows the core application logic to remain decoupled from the specifics of how the LLM is called and how responses are parsed.
+"""
+
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
