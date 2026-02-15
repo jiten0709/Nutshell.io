@@ -5,7 +5,7 @@
 
 from qdrant_client import QdrantClient, models
 from fastembed import TextEmbedding
-from typing import List, Optional
+from typing import Optional
 import uuid
 
 class VectorService:

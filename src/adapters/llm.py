@@ -1,7 +1,7 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
-from ..core.entities import NewsletterDigest
+from src.core.entities import NewsletterDigest
 
 import os
 os.makedirs("logs", exist_ok=True)
