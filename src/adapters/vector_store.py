@@ -60,6 +60,12 @@ class VectorService:
         """
         vector = list(self.encoder.embed([text_for_vector]))[0]
         
+        # Ensure list fields are initialized if not present
+        insight_data.setdefault("tags", [])
+        insight_data.setdefault("companies_mentioned", [])
+        insight_data.setdefault("key_people", [])
+        insight_data.setdefault("links", [])
+        
         self.client.upsert(
             collection_name=self.collection_name,
             points=[
@@ -91,10 +97,24 @@ class VectorService:
         """
         The 'Update' path: Only modifies specific keys in the metadata.
         Crucial for the 'Merging' logic.
+        Handles merging of list fields like tags, companies, and key_people.
         """
+        # Get existing payload to merge lists properly
+        existing = self.get_payload(point_id)
+        
+        # Merge list fields by combining and deduplicating
+        for list_field in ["tags", "companies_mentioned", "key_people", "links"]:
+            if list_field in new_data:
+                existing_list = existing.get(list_field, [])
+                new_list = new_data[list_field]
+                # Combine and deduplicate while preserving order
+                merged = list(dict.fromkeys(existing_list + new_list))
+                new_data[list_field] = merged
+        
         self.client.set_payload(
             collection_name=self.collection_name,
             payload=new_data,
             points=[point_id]
         )
-        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with new_data: {new_data}")    
+        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with merged data: {new_data}")
+        

@@ -1,5 +1,5 @@
 """
-about this file: This module contains the core use case logic for processing new email content. 
+This module contains the core use case logic for processing new email content. 
 When a new email is received, the process_new_email function is called with the raw payload. 
 The function extracts the email body, uses the LLM adapter to get a structured NewsletterDigest, and then checks for duplicates in the vector store. 
 If a duplicate headline is found, it merges the insights and updates the existing record. 
@@ -9,6 +9,7 @@ This file serves as the central place for the main business logic of how incomin
 
 from src.adapters.llm import extract_digest_from_text
 from src.adapters.vector_store import VectorService
+from datetime import datetime
 
 from utils.logging_setup import get_logger
 logger = get_logger(__name__, log_file="core.log")
@@ -21,7 +22,7 @@ async def process_new_email(payload: dict):
     1. Extract raw text
     2. Extract structured digest via LLM
     3. Check for duplicates in vector DB
-    4. Merge or insert new insights
+    4. Merge or insert new insights with full metadata
     """
     logger.info("📬 Processing new email...")
     
@@ -32,14 +33,32 @@ async def process_new_email(payload: dict):
         logger.warning("Empty email body, skipping")
         return
     
+    # Extract email metadata (source, subject, date)
+    email_source = payload.get("From", payload.get("from", "Unknown Newsletter"))
+    email_subject = payload.get("Subject", payload.get("subject", "Untitled"))
+    email_date = payload.get("Date", payload.get("date", datetime.utcnow().isoformat()))
+    
+    # Create source metadata object
+    source_metadata = {
+        "email": email_source,
+        "subject": email_subject,
+        "date": email_date
+    }
+    
+    logger.info(f"📧 Processing: '{email_subject}' from {email_source}")
+    
     logger.info("🤖 Extracting digest from email...")
     digest = await extract_digest_from_text(email_body)
     
-    # FIX: Access the parsed NewsletterDigest object correctly
+    # Access the parsed NewsletterDigest object correctly
     newsletter_digest = digest.choices[0].message.parsed
     
-    # Get source information
-    email_source = payload.get("From", payload.get("from", "Unknown Newsletter"))
+    # Check if digest is empty (all content was filtered as noise)
+    if not newsletter_digest.insights or len(newsletter_digest.insights) == 0:
+        logger.warning(f"⚠️ No valid insights extracted from '{email_subject}'. Skipping email.")
+        return
+    
+    logger.info(f"✅ Extracted {len(newsletter_digest.insights)} insights from '{email_subject}'")
     
     # Process each insight from the digest
     for incoming in newsletter_digest.insights:
@@ -59,37 +78,60 @@ async def process_new_email(payload: dict):
             new_links = set(incoming.links)
             merged_links = list(existing_links | new_links)
             
-            # 3. Update Sources (Add the new source to the history)
-            sources = current_payload.get("sources", ["Original Source"])
-            if email_source not in sources:
-                sources.append(email_source)
+            # 3. Update Sources (Store full source metadata, not just email)
+            sources = current_payload.get("sources", [])
+            
+            # Check if this specific email subject was already processed
+            source_subjects = [s.get("subject") for s in sources if isinstance(s, dict)]
+            if email_subject not in source_subjects:
+                sources.append(source_metadata)
+                logger.debug(f"Added new source: {email_subject}")
+            else:
+                logger.debug(f"Source already recorded: {email_subject}")
 
             # 4. Update relevance score (take the max)
             updated_relevance = max(
                 current_payload.get('relevance_score', 0),
                 incoming.relevance_score
             )
+            
+            # 5. Track first and last seen dates
+            first_seen = current_payload.get("first_seen", email_date)
+            last_seen = email_date
 
-            # 5. Patch the record with merged data
+            # 6. Patch the record with merged data
             vs.patch_payload(dup_id, {
                 "links": merged_links,
                 "sources": sources,
-                "mention_count": current_payload.get("mention_count", 1) + 1,
+                "mention_count": len(sources), 
                 "summary": incoming.summary,  # Update with latest summary
-                "relevance_score": updated_relevance
+                "relevance_score": updated_relevance,
+                "first_seen": first_seen,
+                "last_seen": last_seen,
+                "category": incoming.category  # Update category in case it changed
             })
             
             logger.info(f"🔥 Merged insight: {incoming.headline}")
             logger.info(f"   - Total sources: {len(sources)}")
-            logger.info(f"   - Mentions: {current_payload.get('mention_count', 1) + 1}")
+            logger.info(f"   - Latest source: '{email_subject}'")
             logger.info(f"   - Links added: {len(new_links - existing_links)}")
+            logger.info(f"   - Relevance: {updated_relevance}/10")
         else:
             # New insight logic
             logger.info(f"✨ New insight found: {incoming.headline}")
             data = incoming.model_dump()
-            data["sources"] = [email_source]
+            
+            # ENHANCEMENT: Add comprehensive metadata
+            data["sources"] = [source_metadata]  # Store full metadata, not just email string
             data["mention_count"] = 1
+            data["first_seen"] = email_date
+            data["last_seen"] = email_date
+            data["original_subject"] = email_subject  # Track which newsletter first mentioned it
+            
             vs.upsert_insight(data, incoming.headline)
-            logger.info(f"✅ Added new insight from source: {email_source}")
+            logger.info(f"✅ Added new insight from: '{email_subject}'")
+            logger.info(f"   - Category: {incoming.category}")
+            logger.info(f"   - Relevance: {incoming.relevance_score}/10")
+            logger.info(f"   - Links: {len(incoming.links)}")
     
-    logger.info("✅ Email processing complete")
+    logger.info(f"✅ Email processing complete for '{email_subject}'")

@@ -9,7 +9,7 @@ These entities are used throughout the application to represent the structured d
 By defining these entities in a centralized module, we ensure consistency and clarity across the application when handling the data extracted from newsletters.
 """
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
@@ -24,8 +24,12 @@ class IntelligenceNode(BaseModel):
     relevance_score: int = Field(..., ge=1, le=10, description="How critical is this for a Senior MLE?")
     category: str = Field(..., description="e.g., 'Model Release', 'Open Source', 'Hardware'")
     links: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list, description="e.g., ['LLM', 'OpenAI', 'Research']")
+    companies_mentioned: List[str] = Field(default_factory=list, description="e.g., ['OpenAI', 'Anthropic']")
+    key_people: List[str] = Field(default_factory=list, description="e.g., ['Sam Altman', 'Demis Hassabis']")
 
 class NewsletterDigest(BaseModel):
     source: NewsletterSource
     processed_at: datetime = Field(default_factory=datetime.now)
     insights: List[IntelligenceNode]
+    newsletter_date: Optional[str] = Field(None, description="Original publication date from the newsletter")
