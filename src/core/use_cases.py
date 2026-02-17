@@ -16,39 +16,80 @@ logger = get_logger(__name__, log_file="core.log")
 vs = VectorService()
 
 async def process_new_email(payload: dict):
-    email_body = payload.get("TextBody", "") # Mocking the email body for now
+    """
+    Core use case: Process an inbound newsletter email.
+    1. Extract raw text
+    2. Extract structured digest via LLM
+    3. Check for duplicates in vector DB
+    4. Merge or insert new insights
+    """
+    logger.info("📬 Processing new email...")
+    
+    # Extract email body (handle both Postmark and Nylas formats)
+    email_body = payload.get("TextBody", payload.get("body", ""))
+    
+    if not email_body:
+        logger.warning("Empty email body, skipping")
+        return
+    
+    logger.info("🤖 Extracting digest from email...")
     digest = await extract_digest_from_text(email_body)
     
-    for incoming in digest.insights:
-        existing_id = vs.find_duplicate(incoming.headline)
+    # FIX: Access the parsed NewsletterDigest object correctly
+    newsletter_digest = digest.choices[0].message.parsed
+    
+    # Get source information
+    email_source = payload.get("From", payload.get("from", "Unknown Newsletter"))
+    
+    # Process each insight from the digest
+    for incoming in newsletter_digest.insights:
+        logger.debug(f"Processing insight: {incoming.headline}")
         
-        if existing_id:
+        # Check for duplicate
+        dup_id = vs.find_duplicate(incoming.headline)
+        
+        if dup_id:
             logger.info(f"🔍 Found duplicate for headline: {incoming.headline}. Merging insights...")
 
             # 1. Fetch current state
-            current_payload = vs.get_payload(existing_id)
+            current_payload = vs.get_payload(dup_id)
             
             # 2. Merge Links (Avoid duplicates)
-            updated_links = list(set(current_payload.get("links", []) + incoming.links))
+            existing_links = set(current_payload.get("links", []))
+            new_links = set(incoming.links)
+            merged_links = list(existing_links | new_links)
             
-            # 3. Update Metadata (Add the new source to the history)
+            # 3. Update Sources (Add the new source to the history)
             sources = current_payload.get("sources", ["Original Source"])
-            new_source = payload.get("From", "Unknown Newsletter")
-            if new_source not in sources:
-                sources.append(new_source)
+            if email_source not in sources:
+                sources.append(email_source)
 
-            # 4. Patch the record
-            vs.patch_payload(existing_id, {
-                "links": updated_links,
+            # 4. Update relevance score (take the max)
+            updated_relevance = max(
+                current_payload.get('relevance_score', 0),
+                incoming.relevance_score
+            )
+
+            # 5. Patch the record with merged data
+            vs.patch_payload(dup_id, {
+                "links": merged_links,
                 "sources": sources,
-                "mention_count": current_payload.get("mention_count", 1) + 1
+                "mention_count": current_payload.get("mention_count", 1) + 1,
+                "summary": incoming.summary,  # Update with latest summary
+                "relevance_score": updated_relevance
             })
-            logger.info(f"🔥 Merged insight: {incoming.headline} (Total sources: {len(sources)})")
+            
+            logger.info(f"🔥 Merged insight: {incoming.headline}")
+            logger.info(f"   - Total sources: {len(sources)}")
+            logger.info(f"   - Mentions: {current_payload.get('mention_count', 1) + 1}")
+            logger.info(f"   - Links added: {len(new_links - existing_links)}")
         else:
             # New insight logic
-            logger.info(f"✨ No duplicate found for headline: {incoming.headline}. Adding as new insight.")
+            logger.info(f"✨ New insight found: {incoming.headline}")
             data = incoming.model_dump()
-            data["sources"] = [payload.get("From", "Initial Source")]
+            data["sources"] = [email_source]
             data["mention_count"] = 1
             vs.upsert_insight(data, incoming.headline)
-            logger.info(f"✅ Added new insight: {incoming.headline} from source: {payload.get('From', 'Unknown')}")
+            logger.info(f"✅ Added new insight from source: {email_source}")
+    
+    logger.info("✅ Email processing complete")

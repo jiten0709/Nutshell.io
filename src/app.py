@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv() 
 import os
 
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "test_collection")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "nutshell")
 print(f"Using collection: {COLLECTION_NAME}")
 
 # Page Config

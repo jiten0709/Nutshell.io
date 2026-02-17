@@ -21,7 +21,7 @@ logger = get_logger(__name__, log_file="adapters.log")
 THRESHOLD = float(os.getenv("THRESHOLD", 0.85))
 
 class VectorService:
-    def __init__(self, collection_name: str = "nutshells"):
+    def __init__(self, collection_name: str = "nutshell"):
         self.client = QdrantClient(host="localhost", port=6333)
         self.encoder = TextEmbedding() # Defaults to BAAI/bge-small-en-v1.5
         self.collection_name = collection_name
