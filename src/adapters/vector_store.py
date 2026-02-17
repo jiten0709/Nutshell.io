@@ -99,18 +99,6 @@ class VectorService:
         Crucial for the 'Merging' logic.
         Handles merging of list fields like tags, companies, and key_people.
         """
-        # Get existing payload to merge lists properly
-        existing = self.get_payload(point_id)
-        
-        # Merge list fields by combining and deduplicating
-        for list_field in ["tags", "companies_mentioned", "key_people", "links"]:
-            if list_field in new_data:
-                existing_list = existing.get(list_field, [])
-                new_list = new_data[list_field]
-                # Combine and deduplicate while preserving order
-                merged = list(dict.fromkeys(existing_list + new_list))
-                new_data[list_field] = merged
-        
         self.client.set_payload(
             collection_name=self.collection_name,
             payload=new_data,
