@@ -55,5 +55,6 @@ class NylasAdapter:
                 "date": msg.date
             })
         logger.info(f"🔎 Fetched {len(newsletter_data)} newsletters from Nylas.")
+        logger.debug(f"📬 Newsletter subjects: {[n['subject'] for n in newsletter_data]}")
 
         return newsletter_data

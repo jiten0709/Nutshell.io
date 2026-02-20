@@ -7,7 +7,7 @@ This abstraction allows the core application logic to remain decoupled from the 
 from openai import OpenAI, APIError
 from dotenv import load_dotenv
 load_dotenv()
-from src.core.entities import NewsletterDigest
+from src.core.entities import NewsletterDigest, NewsletterSource
 import os
 import asyncio
 from typing import List
@@ -25,11 +25,11 @@ CHUNK_OVERLAP = 200  # Characters to overlap between chunks for context
 MIN_RELEVANCE_SCORE = int(os.getenv('MIN_RELEVANCE_SCORE', 5))
 
 # prompt templates
-EXTRACTION_PROMPT = """You are analyzing part {chunk_index + 1} of {total_chunks} from an AI/tech newsletter.
+EXTRACTION_PROMPT = """You are analyzing part {chunk_index} of {total_chunks} from an AI/tech newsletter.
 
 EXTRACT ONLY:
 - Product launches, new features, or major updates (e.g., "GPT-5 released", "Claude now supports vision")
-- Key technical benchmarks or research findings (e.g., "40% improvement on MMLU", "New SOTA on ImageNet")
+- Key technical benchmarks or research findings (e.g., "40 percent improvement on MMLU", "New SOTA on ImageNet")
 - Important company announcements (funding, acquisitions, partnerships)
 - Links to official sources, research papers, or product pages
 
@@ -124,7 +124,7 @@ def _extract_from_chunk_sync(chunk: str, chunk_index: int, total_chunks: int) ->
     try:
         # ENHANCED PROMPT: More specific instructions to filter noise
         prompt = EXTRACTION_PROMPT.format(
-            chunk_index=chunk_index,
+            chunk_index=chunk_index+1,
             total_chunks=total_chunks,
             chunk=chunk
         )
@@ -206,6 +206,7 @@ async def extract_digest_from_text(raw_text: str) -> NewsletterDigest:
                 logger.warning("Direct parse failed with 413, falling back to chunking")
             else:
                 raise
+        logger.info("⬇️ Falling through to chunked extraction...")
     
     # Strategy 2: Chunk, extract, combine, parse
     logger.info("Using multi-stage chunked extraction")
@@ -233,7 +234,10 @@ async def extract_digest_from_text(raw_text: str) -> NewsletterDigest:
     if not valid_summaries:
         logger.warning("No valid content found after filtering chunks")
         # Return empty digest rather than crashing
-        return NewsletterDigest(insights=[])
+        return NewsletterDigest(
+            source=NewsletterSource(name="unknown"),
+            insights=[]
+        )
     
     combined = "\n\n---\n\n".join(valid_summaries)
     logger.info(f"📒 Combined {len(valid_summaries)}/{len(chunks)} chunk summaries (combined chars: {len(combined)})")
@@ -260,6 +264,14 @@ def _filter_digest(digest):
     else:
         # ParsedChatCompletion wrapper
         parsed = digest.choices[0].message.parsed
+    
+    # ✅ Guard: if parsed is None (model returned nothing), return empty digest
+    if parsed is None:
+        logger.warning("⚠️ LLM returned None for parsed digest, returning empty digest")
+        return NewsletterDigest(
+            source=NewsletterSource(name="unknown"),
+            insights=[]
+        )
     
     original_count = len(parsed.insights)
     
@@ -299,4 +311,5 @@ def _filter_digest(digest):
     
     # Return new digest with filtered insights
     parsed.insights = filtered_insights
-    return digest if hasattr(digest, 'choices') else parsed
+
+    return parsed

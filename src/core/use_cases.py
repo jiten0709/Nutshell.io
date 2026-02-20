@@ -9,6 +9,7 @@ This file serves as the central place for the main business logic of how incomin
 
 from src.adapters.llm import extract_digest_from_text
 from src.adapters.vector_store import VectorService
+from src.core.entities import NewsletterDigest
 from datetime import datetime
 
 from utils.logging_setup import get_logger
@@ -51,11 +52,8 @@ async def process_new_email(payload: dict):
         logger.info("🤖 Extracting digest from email...")
         digest = await extract_digest_from_text(email_body)
         
-        # Access the parsed NewsletterDigest object correctly
-        newsletter_digest = digest.choices[0].message.parsed
-        
-        # Check if digest is empty (all content was filtered as noise)
-        if not newsletter_digest.insights or len(newsletter_digest.insights) == 0:
+        newsletter_digest = digest
+        if not newsletter_digest or not newsletter_digest.insights:
             logger.warning(f"⚠️ No valid insights extracted from '{email_subject}'. Skipping email.")
             return
         

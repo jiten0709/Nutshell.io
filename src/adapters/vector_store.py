@@ -104,5 +104,5 @@ class VectorService:
             payload=new_data,
             points=[point_id]
         )
-        logger.debug(f"patch_payload: Patched payload for point_id '{point_id}' with merged data: {new_data}")
+        logger.debug(f"💬 patch_payload: Patched payload for point_id '{point_id}' with merged data: {new_data}")
         

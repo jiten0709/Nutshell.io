@@ -1,5 +1,6 @@
 """
 This is the main FastAPI application file that defines the API endpoints for Nutshell.io.
+Its currently unused because we are processing emails directly in the sync_inbox.py script, but it serves as a placeholder for future API endpoints.
 """
 
 from fastapi import FastAPI, Request, BackgroundTasks, Query
