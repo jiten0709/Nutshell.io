@@ -1,28 +1,96 @@
-# Nutshell.io (In progress)
+# Nutshell.io 🥜
 
-- The Problem: The "AI Hype" cycle has created a fragmentation of information. High-signal updates are buried in 15+ daily newsletters (TLDR, The Neuron, etc.), leading to "Tab Fatigue" and duplicate consumption.
+_Automated intelligence extraction and semantic deduplication engine for the AI news ecosystem._
 
-- The Solution: A unified, deduplicated, and semantically indexed "Command Center" that transforms 1,000+ newsletter sentences into 10-15 actionable, technical insights per day, personalized to your specific tech stack.
+![Application image](./assets/images/homepage.png)
 
-# Core Functionalities (The "Moat" Features)
+---
 
-1. The "Smart Deduper" (Semantic Merging)
-   Instead of showing you three different summaries of the "Sora Release," the system identifies they are the same event using Cosine Similarity. It then merges the insights:
-   Newsletter A mentions the release date.
-   Newsletter B mentions the technical architecture.
-   SignalFlow presents one entry with all unique facts.
+## Problem & Solution
 
-2. The "Paper-to-Verify" Engine
-   When a newsletter claims a new model is "SOTA," the backend automatically triggers a worker to:
-   Scrape the linked ArXiv paper or GitHub README.
-   Cross-reference the newsletter's claim against the actual benchmarks.
-   Flag discrepancies (e.g., "Newsletter says 90% accuracy, Paper says 82%").
+> **The Fragmentation Problem:** High-signal technical updates are buried in 15+ daily newsletters (TLDR, The Neuron, etc.), leading to "Tab Fatigue," duplicate consumption, and lost context.
 
-3. Personal "Signal" Profiles
-   The app doesn't just show "Top News." It ranks news based on your Engineer Persona:
-   The Researcher: Focuses on new architectures and loss functions.
-   The Builder: Focuses on SDK updates, API pricing changes, and framework releases (LangChain, LlamaIndex).
+> **The Architectural Solution:** A unified "Command Center" that transforms raw unstructured text into structured **Intelligence Nodes**. It uses semantic similarity to detect that various newsletters are talking about the same _model release_, merging them into a single, comprehensive insight.
 
-# Technical Architecture & Tech-Stack
+## Architecture
 
-# Made with ❤️ by Jiten !!!
+![Architecture Diagram](./assets/images/system_flow.png)
+
+**System Flow:**
+
+1. **Ingestion:** Fetches emails via Nylas, cleaning HTML/CSS noise.
+2. **Extraction:** An LLM Agent parses text into structured `IntelligenceNode` objects (Headline, Summary, Links, Tags).
+3. **Deduplication:** Embeddings are generated for headlines. If a new item is semantically similar to an existing vector (Threshold > 0.85), payload fields are merged rather than duplicated.
+
+## Key Features
+
+- **🧠 Semantic Deduplication Engine**
+  Uses vector embeddings to identify that "OpenAI releases GPT-5" and "OpenAI's latest model is here" are the same event, merging sources into a single `IntelligenceNode`.
+
+- **🔍 Structured Entity Extraction**
+  Transforms unstructured prose into strongly typed Pydantic models, extracting metadata like `Relevance Score` (1-10), `Companies Mentioned`, and `Key People`.
+
+- **📊 Signal-to-Noise Filtering**
+  Post-processing logic filters out advertisements, "In Case You Missed It" recaps, and non-technical fluff based on semantic density and keyword heuristics.
+
+## Tech Stack
+
+| Component      | Technology    | Reasoning                                                               |
+| :------------- | :------------ | :---------------------------------------------------------------------- |
+| **Language**   | Python 3.10+  | Native support for vector libraries and Pydantic.                       |
+| **Vector DB**  | Qdrant        | Efficient vector search with payload filtering; run locally via Docker. |
+| **Embeddings** | FastEmbed     | Low-latency local embedding generation (avoiding API latency).          |
+| **LLM**        | OpenAI GPT-4o | High-fidelity structured output via JSON mode for extraction.           |
+| **Ingestion**  | Nylas API     | Unified API for handling email protocols (IMAP/Exchange).               |
+| **Frontend**   | Streamlit     | Rapid prototyping for data-intensive dashboards.                        |
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.10+
+- Docker (for Qdrant)
+- OpenAI API Key
+- Nylas API Credentials
+
+### Installation
+
+1.  **Clone the repository**
+
+    ```bash
+    git clone https://github.com/jiten0709/Nutshell.io.git
+    cd Nutshell.io
+    ```
+
+2.  **Set up environment**
+
+    ```bash
+    uv venv
+    source .venv/bin/activate
+    uv pip install -r requirements.txt
+    ```
+
+3.  **Configure `.env`**
+
+    ```bash
+    cp .env.example .env
+    # Add your NYLAS_*, OPENAI_*, and QDRANT_* keys
+    ```
+
+4.  **Run the Stack**
+
+    ```bash
+    # 1. Start Vector DB
+    docker run -p 6333:6333 qdrant/qdrant
+
+    # 2. Run Dashboard (Use sidebar to ingest & process)
+    streamlit run src/app.py
+    ```
+
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss proposed architectural changes before submitting a PR.
+
+---
+
+<p align="center"><em>Made with ❤️ by Jiten</em></p>
