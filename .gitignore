@@ -27,3 +27,4 @@ venv.bak/
 notes
 notebooks
 logs
+.DS_Store
