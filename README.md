@@ -14,7 +14,7 @@ _Automated intelligence extraction and semantic deduplication engine for the AI 
 
 ## Architecture
 
-![Architecture Diagram](./assets/images/system_flow.jpg)
+![Architecture Diagram](./assets/images/architecture.jpg)
 
 **System Flow:**
 
